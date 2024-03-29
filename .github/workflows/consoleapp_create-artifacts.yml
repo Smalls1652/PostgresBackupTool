@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+name: ConsoleApp / Create artifacts
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "v*.*.*-*"
+  workflow_dispatch:
+
+permissions:
+    packages: read
+
+jobs:
+    create-artifacts:
+        name: Create artifacts
+        runs-on: ubuntu-latest
+        strategy:
+          matrix:
+            runtime: ["linux-x64", "linux-arm64", "win-x64", "win-arm64", "osx-x64", "osx-arm64"]
+        env:
+            DOTNET_NOLOGO: true
+        
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                fetch-depth: 0
+            
+            - name: Setup .NET SDK
+              uses: actions/setup-dotnet@v4
+              with:
+                global-json-file: global.json
+
+            - name: Install .NET tools
+              run: dotnet tool restore
+
+            - name: Update project files with GitVersion
+              run: dotnet tool run dotnet-gitversion /updateprojectfiles
+
+            - name: Compile project
+              shell: pwsh
+              run: |
+                dotnet restore ./src/ConsoleApp/;
+                dotnet publish ./src/ConsoleApp/ --configuration "Release" --runtime "${{ matrix.runtime }}";
+                Remove-Item -Path "./artifacts/publish/ConsoleApp/release_${{ matrix.runtime }}/*.pdb" -Recurse -Force -Verbose;
+                Remove-Item -Path "./artifacts/publish/ConsoleApp/release_${{ matrix.runtime }}/*.dbg" -Recurse -Force -Verbose;
+                Remove-Item -Path "./artifacts/publish/ConsoleApp/release_${{ matrix.runtime }}/*.dsym" -Recurse -Force -Verbose
+
+            - name: Create artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: "PostgresBackupTool_${{ matrix.runtime }}_${{ github.ref_type == 'tag' && github.ref_name || github.sha }}"
+                path: ${{ github.workspace }}/artifacts/publish/ConsoleApp/release_${{ matrix.runtime }}/**/*
+                if-no-files-found: error
