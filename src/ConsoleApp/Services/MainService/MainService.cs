@@ -74,9 +74,10 @@ public sealed class MainService : IHostedService, IDisposable
                 return 1;
             }
 
+            string compressedOutputPath;
             try
             {
-                await CompressDumpAsync(outputPathFull, cancellationToken);
+                compressedOutputPath = await CompressDumpAsync(outputPathFull, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -96,7 +97,7 @@ public sealed class MainService : IHostedService, IDisposable
                 {
                     AzureStorageBlobProvider azureStorageBlobProvider = new(_options.AzureBlobStorageConfig!);
 
-                    await azureStorageBlobProvider.UploadBackupAsync($"{outputPathFull}.tar.gz", cancellationToken);
+                    await azureStorageBlobProvider.UploadBackupAsync(compressedOutputPath, cancellationToken);
                 }
                 catch (Exception ex)
                 {
@@ -176,7 +177,7 @@ public sealed class MainService : IHostedService, IDisposable
     /// <param name="dirPath">The path to the directory to compress.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns></returns>
-    private async Task CompressDumpAsync(string dirPath, CancellationToken cancellationToken)
+    private async Task<string> CompressDumpAsync(string dirPath, CancellationToken cancellationToken)
     {
         DateTimeOffset currentDateTime = DateTimeOffset.Now;
 
@@ -204,6 +205,8 @@ public sealed class MainService : IHostedService, IDisposable
 
         tarOutputStream.Close();
         File.Delete(tarOutputPath);
+
+        return compressedOutputPath;
     }
 
     /// <inheritdoc />
