@@ -181,11 +181,12 @@ public sealed class MainService : IHostedService, IDisposable
         DateTimeOffset currentDateTime = DateTimeOffset.Now;
 
         string outputParentDirectory = Path.GetDirectoryName(dirPath)!;
+        string tarOutputPath = Path.Combine(outputParentDirectory, $"{Path.GetFileName(dirPath)}_{currentDateTime:yyyy-MM-dd_HH-mm-ss}.tar");
         string compressedOutputPath = Path.Combine(outputParentDirectory, $"{Path.GetFileName(dirPath)}_{currentDateTime:yyyy-MM-dd_HH-mm-ss}.tar.gz");
 
         _logger.LogInformation("Compressing backup to '{CompressedOutputPath}'...", compressedOutputPath);
 
-        using MemoryStream tarOutputStream = new();
+        using FileStream tarOutputStream = File.Create(tarOutputPath);
 
         TarFile.CreateFromDirectory(
             sourceDirectoryName: dirPath,
@@ -200,6 +201,9 @@ public sealed class MainService : IHostedService, IDisposable
         using GZipStream gZipStream = new(compressedOutputFileStream, CompressionMode.Compress);
 
         await tarOutputStream.CopyToAsync(compressedOutputFileStream, cancellationToken);
+
+        tarOutputStream.Close();
+        File.Delete(tarOutputPath);
     }
 
     /// <inheritdoc />
