@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using PostgresBackupTool.ConsoleApp;
 using PostgresBackupTool.ConsoleApp.Extensions;
 using PostgresBackupTool.ConsoleApp.Models;
+using PostgresBackupTool.ConsoleApp.Services;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -25,6 +26,23 @@ builder.Configuration
         args: args,
         switchMappings: RootCommandLineMappings.SwitchMappings
     );
+
+if (builder.Configuration.GetValue<bool>("USE_KEY_VAULT"))
+{
+
+    KeyVaultService kvService = new(
+        options: new KeyVaultServiceOptions()
+        {
+            KeyVaultName = builder.Configuration.GetValue<string>("KEY_VAULT_NAME") ?? throw new NullReferenceException("KEY_VAULT_NAME or --key-vault-name is required")
+        }
+    );
+
+    builder.Configuration["DATABASE_PASSWORD"] = await kvService.GetSecretAsync(
+        secretName: builder.Configuration.GetValue<string>("KEY_VAULT_SECRET_DATABASE_PASSWORD") ?? throw new NullReferenceException("KEY_VAULT_SECRET_DATABASE_PASSWORD or --key-vault-secret-database-password is required")
+    );
+
+    kvService.Dispose();
+}
 
 builder.Services
     .AddMainService(
