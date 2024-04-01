@@ -86,9 +86,6 @@ public sealed class MainService : IHostedService, IDisposable
                 return 1;
             }
 
-            _logger.LogInformation("Removing uncompressed backup...");
-            Directory.Delete(outputPathFull, recursive: true);
-
             if (_options.BackupLocation == BackupLocation.AzureBlobStorage)
             {
                 _logger.LogInformation("Uploading backup to Azure Blob Storage...");
@@ -194,6 +191,8 @@ public sealed class MainService : IHostedService, IDisposable
             destination: tarOutputStream,
             includeBaseDirectory: true
         );
+
+        Directory.Delete(dirPath, recursive: true);
 
         tarOutputStream.Position = 0;
 
